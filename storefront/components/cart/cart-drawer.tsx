@@ -132,7 +132,13 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                         </div>
 
                         {/* Price */}
-                        <p className="text-sm font-medium">{formattedPrice}</p>
+                        <p className="text-sm font-medium">
+                          {item.quantity > 1 ? (
+                            <span>{formattedPrice} × {item.quantity}</span>
+                          ) : (
+                            formattedPrice
+                          )}
+                        </p>
                       </div>
                     </div>
                   </div>

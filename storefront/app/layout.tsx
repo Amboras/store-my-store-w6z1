@@ -7,7 +7,6 @@ import Footer from '@/components/layout/footer'
 import AnnouncementBar from '@/components/layout/announcement-bar'
 import { AnalyticsProvider } from '@/components/analytics-provider'
 import CookieConsent from '@/components/cookie-consent'
-import { BrandStyleInjector } from '@/components/brand-style-injector'
 import { Toaster } from 'sonner'
 import { ElementPickerListener } from '@/components/element-picker-listener'
 
@@ -42,7 +41,6 @@ export default function RootLayout({
     <html lang="en" className={`${heading.variable} ${body.variable}`} suppressHydrationWarning>
       <body>
         <Providers>
-          <BrandStyleInjector />
           <ElementPickerListener />
           <AnnouncementBar />
           <Header />

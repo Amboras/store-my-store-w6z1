@@ -1,9 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
 import { clearConsent } from '@/lib/cookie-consent'
-import { useBrand } from '@/hooks/use-brand'
 import { usePolicies } from '@/hooks/use-policies'
 
 const footerLinks = {
@@ -20,7 +18,6 @@ const footerLinks = {
 }
 
 export default function Footer() {
-  const { brand } = useBrand()
   const { policies } = usePolicies()
 
   // Build company links dynamically based on available policies
@@ -50,22 +47,12 @@ export default function Footer() {
           {/* Brand */}
           <div className="lg:col-span-1">
             <Link href="/" className="inline-block">
-              {brand?.squareLogoUrl ? (
-                <Image
-                  src={brand.squareLogoUrl}
-                  alt={brand.storeName || 'Store'}
-                  width={80}
-                  height={80}
-                  className="h-12 w-auto object-contain"
-                />
-              ) : (
-                <span className="font-heading text-2xl font-semibold">
-                  {brand?.storeName || 'Store'}
-                </span>
-              )}
+              <span className="font-heading text-2xl font-semibold">
+                Store
+              </span>
             </Link>
             <p className="mt-4 text-sm text-muted-foreground leading-relaxed max-w-xs">
-              {brand?.description || brand?.slogan || 'Curated products crafted with care. Quality you can feel, design you can see.'}
+              Curated products crafted with care. Quality you can feel, design you can see.
             </p>
           </div>
 
@@ -115,7 +102,7 @@ export default function Footer() {
         {/* Bottom Bar */}
         <div className="mt-12 pt-8 border-t flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-xs text-muted-foreground">
-            &copy; {new Date().getFullYear()} {brand?.storeName || 'Store'}. All rights reserved.
+            &copy; {new Date().getFullYear()} Store. All rights reserved.
           </p>
           <div className="flex items-center gap-6">
             <button
@@ -127,7 +114,7 @@ export default function Footer() {
             >
               Manage Cookies
             </button>
-            <span className="text-xs text-muted-foreground">Powered by Medusa</span>
+            <span className="text-xs text-muted-foreground">Powered by Amboras</span>
           </div>
         </div>
       </div>

@@ -147,8 +147,6 @@ export function useCart() {
   }
 
   const itemCount = cart?.items?.reduce((sum: number, item: any) => sum + item.quantity, 0) || 0
-  // Use original_item_subtotal (pre-discount) so the subtotal row always shows the
-  // un-discounted items total. The discount line then shows the reduction separately.
   const subtotal = (cart as any)?.original_item_subtotal ?? cart?.subtotal ?? 0
   const total = cart?.total || 0
   const appliedPromoCodes: string[] = (cart?.promotions || []).map((p: any) => p.code)

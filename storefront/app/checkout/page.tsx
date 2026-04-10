@@ -14,20 +14,18 @@ import { StripePaymentForm } from '@/components/checkout/stripe-payment-form'
 import { PromoCodeInput } from '@/components/checkout/promo-code-input'
 import { getProductImage } from '@/lib/utils/placeholder-images'
 import { trackBeginCheckout } from '@/lib/analytics'
+import { formatPrice } from '@/lib/utils/format-price'
 
 const steps: { key: CheckoutStep; label: string }[] = [
-  { key: 'info', label: 'Information' },
   { key: 'shipping', label: 'Shipping' },
-  { key: 'payment', label: 'Payment & Review' },
+  { key: 'payment', label: 'Payment' },
 ]
-
-import { formatPrice } from '@/lib/utils/format-price'
 
 export default function CheckoutPage() {
   const router = useRouter()
   const {
     step, setStep, cart, shippingOptions, loadingShipping,
-    setContactAndAddress, setShippingMethod, completeCheckout,
+    submitShippingStep, completeCheckout,
     isUpdating, error, clearError, paymentSession, stripeConfig,
   } = useCheckout()
 
@@ -57,7 +55,6 @@ export default function CheckoutPage() {
     }
   }, [cart?.id, hasItems, cart?.total, currency])
 
-  // Require account: redirect to login if not logged in
   useEffect(() => {
     if (!authLoading && checkoutSettings?.require_account && !isLoggedIn) {
       toast.error('Please sign in to continue to checkout')
@@ -65,14 +62,12 @@ export default function CheckoutPage() {
     }
   }, [authLoading, checkoutSettings?.require_account, isLoggedIn, router])
 
-  // Pre-fill email from customer if logged in
   useEffect(() => {
     if (customer?.email && !email) {
       setEmail(customer.email)
     }
   }, [customer?.email, email])
 
-  // Set country code from cart region (only once, on first load)
   const countryCodeSet = useRef(false)
   useEffect(() => {
     if (countryCodeSet.current) return
@@ -83,27 +78,12 @@ export default function CheckoutPage() {
     }
   }, [cart?.shipping_address?.country_code, cart?.region?.countries])
 
-  // Set marketing opt-in default based on settings
   useEffect(() => {
     if (checkoutSettings?.marketing_opt_in?.enabled && checkoutSettings.marketing_opt_in.pre_checked) {
       setMarketingOptIn(true)
     }
   }, [checkoutSettings?.marketing_opt_in])
 
-  // Step 1: Submit info
-  const handleInfoSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    clearError()
-    await setContactAndAddress(email, address)
-
-    // TODO: Store marketing opt-in preference in cart metadata or customer metadata
-    // For now, it's captured but not persisted
-    if (marketingOptIn) {
-      console.log('Customer opted in to marketing emails')
-    }
-  }
-
-  // Step 2: Submit shipping
   const handleShippingSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedShipping) {
@@ -111,14 +91,13 @@ export default function CheckoutPage() {
       return
     }
     clearError()
-    await setShippingMethod(selectedShipping)
+    await submitShippingStep(email, address, selectedShipping)
   }
 
   const buildSuccessUrl = (order: { id: string }) => {
     return `/checkout/success?order=${encodeURIComponent(order.id)}`
   }
 
-  // Step 3: Place order
   const handlePlaceOrder = async () => {
     clearError()
     const order = await completeCheckout()
@@ -131,6 +110,8 @@ export default function CheckoutPage() {
   const updateAddress = (field: keyof ShippingAddress, value: string) => {
     setAddress((prev) => ({ ...prev, [field]: value }))
   }
+
+  const inputClass = "border-b border-foreground/20 bg-transparent px-0 py-3 text-sm placeholder:text-muted-foreground focus:border-foreground focus:outline-none transition-colors"
 
   return (
     <>
@@ -149,15 +130,13 @@ export default function CheckoutPage() {
         {/* Step Indicators */}
         <div className="flex items-center gap-2 mb-8">
           {steps.map((s, i) => {
-            const stepIndex = steps.findIndex((st) => st.key === step)
             const isActive = s.key === step
-            const isCompleted = i < stepIndex
-
+            const isCompleted = step === 'payment' && s.key === 'shipping'
             return (
               <div key={s.key} className="flex items-center gap-2">
                 {i > 0 && <ChevronRight className="h-3 w-3 text-muted-foreground" />}
                 <button
-                  onClick={() => isCompleted && setStep(s.key)}
+                  onClick={() => { if (isCompleted) setStep('shipping') }}
                   disabled={!isCompleted}
                   className={`text-sm transition-colors ${
                     isActive ? 'font-semibold text-foreground' :
@@ -174,9 +153,8 @@ export default function CheckoutPage() {
         </div>
 
         <div className="grid lg:grid-cols-[1fr_380px] gap-10 lg:gap-16">
-          {/* Main Content */}
+          {/* ============ LEFT COLUMN ============ */}
           <div>
-            {/* Error Banner */}
             {error && (
               <div className="flex items-start gap-3 p-4 mb-6 border border-destructive/30 rounded-sm bg-destructive/5">
                 <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
@@ -184,34 +162,16 @@ export default function CheckoutPage() {
               </div>
             )}
 
-            {/* Step 1: Contact + Address */}
-            {step === 'info' && (
-              <form onSubmit={handleInfoSubmit} className="space-y-8">
+            {/* STEP 1: Address form only */}
+            {step === 'shipping' && (
+              <form onSubmit={handleShippingSubmit} id="shipping-form" className="space-y-8">
                 <section>
                   <h2 className="text-xs uppercase tracking-widest font-semibold mb-4">Contact</h2>
-
-                  {/* Email - always required */}
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    placeholder="Email address"
-                    className="w-full border-b border-foreground/20 bg-transparent px-0 py-3 text-sm placeholder:text-muted-foreground focus:border-foreground focus:outline-none transition-colors"
-                  />
-
-                  {/* Marketing opt-in checkbox */}
+                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="Email address" className={`w-full ${inputClass}`} />
                   {checkoutSettings?.marketing_opt_in?.enabled && checkoutSettings.marketing_opt_in.where !== 'signin' && (
                     <label className="flex items-start gap-2 mt-4 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={marketingOptIn}
-                        onChange={(e) => setMarketingOptIn(e.target.checked)}
-                        className="w-4 h-4 mt-0.5 text-foreground focus:ring-2 focus:ring-foreground rounded"
-                      />
-                      <span className="text-sm text-muted-foreground">
-                        Email me with news and offers
-                      </span>
+                      <input type="checkbox" checked={marketingOptIn} onChange={(e) => setMarketingOptIn(e.target.checked)} className="w-4 h-4 mt-0.5 text-foreground focus:ring-2 focus:ring-foreground rounded" />
+                      <span className="text-sm text-muted-foreground">Email me with news and offers</span>
                     </label>
                   )}
                 </section>
@@ -219,190 +179,28 @@ export default function CheckoutPage() {
                 <section>
                   <h2 className="text-xs uppercase tracking-widest font-semibold mb-4">Shipping Address</h2>
                   <div className="grid grid-cols-2 gap-4">
-                    {/* First Name - conditionally required */}
                     {checkoutSettings?.full_name === 'full' && (
-                      <input
-                        type="text"
-                        value={address.first_name}
-                        onChange={(e) => updateAddress('first_name', e.target.value)}
-                        required
-                        placeholder="First name"
-                        className="border-b border-foreground/20 bg-transparent px-0 py-3 text-sm placeholder:text-muted-foreground focus:border-foreground focus:outline-none transition-colors"
-                      />
+                      <input type="text" value={address.first_name} onChange={(e) => updateAddress('first_name', e.target.value)} required placeholder="First name" className={inputClass} />
                     )}
-
-                    {/* Last Name - always required */}
-                    <input
-                      type="text"
-                      value={address.last_name}
-                      onChange={(e) => updateAddress('last_name', e.target.value)}
-                      required
-                      placeholder={checkoutSettings?.full_name === 'last_only' ? 'Last name' : 'Last name'}
-                      className={`border-b border-foreground/20 bg-transparent px-0 py-3 text-sm placeholder:text-muted-foreground focus:border-foreground focus:outline-none transition-colors ${checkoutSettings?.full_name === 'last_only' ? 'col-span-2' : ''}`}
-                    />
-
-                    {/* Company Name - conditional visibility */}
+                    <input type="text" value={address.last_name} onChange={(e) => updateAddress('last_name', e.target.value)} required placeholder="Last name" className={`${inputClass} ${checkoutSettings?.full_name === 'last_only' ? 'col-span-2' : ''}`} />
                     {checkoutSettings?.company_name === 'optional' && (
-                      <input
-                        type="text"
-                        value={address.company}
-                        onChange={(e) => updateAddress('company', e.target.value)}
-                        placeholder="Company (optional)"
-                        className="col-span-2 border-b border-foreground/20 bg-transparent px-0 py-3 text-sm placeholder:text-muted-foreground focus:border-foreground focus:outline-none transition-colors"
-                      />
+                      <input type="text" value={address.company} onChange={(e) => updateAddress('company', e.target.value)} placeholder="Company (optional)" className={`col-span-2 ${inputClass}`} />
                     )}
-
-                    {/* Address Line 1 - always required */}
-                    <input
-                      type="text"
-                      value={address.address_1}
-                      onChange={(e) => updateAddress('address_1', e.target.value)}
-                      required
-                      placeholder="Address"
-                      className="col-span-2 border-b border-foreground/20 bg-transparent px-0 py-3 text-sm placeholder:text-muted-foreground focus:border-foreground focus:outline-none transition-colors"
-                    />
-
-                    {/* Address Line 2 - conditional visibility and requirement */}
+                    <input type="text" value={address.address_1} onChange={(e) => updateAddress('address_1', e.target.value)} required placeholder="Address" className={`col-span-2 ${inputClass}`} />
                     {checkoutSettings?.address_line_2 !== 'hidden' && (
-                      <input
-                        type="text"
-                        value={address.address_2}
-                        onChange={(e) => updateAddress('address_2', e.target.value)}
-                        required={checkoutSettings?.address_line_2 === 'required'}
-                        placeholder={checkoutSettings?.address_line_2 === 'required' ? 'Apartment, suite, etc.' : 'Apartment, suite, etc. (optional)'}
-                        className="col-span-2 border-b border-foreground/20 bg-transparent px-0 py-3 text-sm placeholder:text-muted-foreground focus:border-foreground focus:outline-none transition-colors"
-                      />
+                      <input type="text" value={address.address_2} onChange={(e) => updateAddress('address_2', e.target.value)} required={checkoutSettings?.address_line_2 === 'required'} placeholder={checkoutSettings?.address_line_2 === 'required' ? 'Apartment, suite, etc.' : 'Apartment, suite, etc. (optional)'} className={`col-span-2 ${inputClass}`} />
                     )}
-
-                    {/* City - always required */}
-                    <input
-                      type="text"
-                      value={address.city}
-                      onChange={(e) => updateAddress('city', e.target.value)}
-                      required
-                      placeholder="City"
-                      className="border-b border-foreground/20 bg-transparent px-0 py-3 text-sm placeholder:text-muted-foreground focus:border-foreground focus:outline-none transition-colors"
-                    />
-
-                    {/* Postal Code - always required */}
-                    <input
-                      type="text"
-                      value={address.postal_code}
-                      onChange={(e) => updateAddress('postal_code', e.target.value)}
-                      required
-                      placeholder="Postal code"
-                      className="border-b border-foreground/20 bg-transparent px-0 py-3 text-sm placeholder:text-muted-foreground focus:border-foreground focus:outline-none transition-colors"
-                    />
-
-                    {/* Phone - conditional requirement */}
-                    <input
-                      type="text"
-                      value={address.phone}
-                      onChange={(e) => updateAddress('phone', e.target.value)}
-                      required={checkoutSettings?.phone === 'required'}
-                      placeholder={checkoutSettings?.phone === 'required' ? 'Phone' : 'Phone (optional)'}
-                      className="col-span-2 border-b border-foreground/20 bg-transparent px-0 py-3 text-sm placeholder:text-muted-foreground focus:border-foreground focus:outline-none transition-colors"
-                    />
+                    <input type="text" value={address.city} onChange={(e) => updateAddress('city', e.target.value)} required placeholder="City" className={inputClass} />
+                    <input type="text" value={address.postal_code} onChange={(e) => updateAddress('postal_code', e.target.value)} required placeholder="Postal code" className={inputClass} />
+                    <input type="text" value={address.phone} onChange={(e) => updateAddress('phone', e.target.value)} required={checkoutSettings?.phone === 'required'} placeholder={checkoutSettings?.phone === 'required' ? 'Phone' : 'Phone (optional)'} className={`col-span-2 ${inputClass}`} />
                   </div>
                 </section>
-
-                <button
-                  type="submit"
-                  disabled={isUpdating || !hasItems}
-                  className="w-full bg-foreground text-background py-3.5 text-sm font-semibold uppercase tracking-wide hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {isUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                  Continue to Shipping
-                </button>
               </form>
             )}
 
-            {/* Step 2: Shipping Method */}
-            {step === 'shipping' && (
-              <form onSubmit={handleShippingSubmit} className="space-y-6">
-                <div className="p-4 border rounded-sm bg-muted/30 text-sm">
-                  <p className="text-muted-foreground">Shipping to</p>
-                  <p className="font-medium mt-1">{address.first_name} {address.last_name}</p>
-                  <p className="text-muted-foreground">{address.address_1}, {address.city} {address.postal_code}</p>
-                  <button
-                    type="button"
-                    onClick={() => setStep('info')}
-                    className="text-xs font-semibold underline underline-offset-4 mt-2"
-                  >
-                    Edit
-                  </button>
-                </div>
-
-                <section>
-                  <h2 className="text-xs uppercase tracking-widest font-semibold mb-4">Shipping Method</h2>
-                  {loadingShipping ? (
-                    <div className="flex items-center justify-center py-8">
-                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                    </div>
-                  ) : shippingOptions.length === 0 ? (
-                    <p className="text-sm text-muted-foreground py-4">No shipping options available for this address.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {shippingOptions.map((option: any) => {
-                        const price = option.amount != null ? option.amount : option.prices?.[0]?.amount
-                        const priceLabel = price === 0 ? 'Free' : price != null ? formatPrice(price, currency) : '—'
-
-                        return (
-                          <label
-                            key={option.id}
-                            className={`flex items-center justify-between p-4 border rounded-sm cursor-pointer transition-colors ${
-                              selectedShipping === option.id ? 'border-foreground' : 'hover:border-foreground/50'
-                            }`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <input
-                                type="radio"
-                                name="shipping"
-                                value={option.id}
-                                checked={selectedShipping === option.id}
-                                onChange={() => setSelectedShipping(option.id)}
-                                className="accent-foreground"
-                              />
-                              <div>
-                                <p className="text-sm font-medium">{option.name}</p>
-                                {option.type?.description && (
-                                  <p className="text-xs text-muted-foreground">{option.type.description}</p>
-                                )}
-                              </div>
-                            </div>
-                            <span className="text-sm font-medium">{priceLabel}</span>
-                          </label>
-                        )
-                      })}
-                    </div>
-                  )}
-                </section>
-
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setStep('info')}
-                    className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <ArrowLeft className="h-4 w-4" />
-                    Back
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isUpdating || !selectedShipping}
-                    className="flex-1 bg-foreground text-background py-3.5 text-sm font-semibold uppercase tracking-wide hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    {isUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                    Continue to Payment
-                  </button>
-                </div>
-              </form>
-            )}
-
-            {/* Step 3: Payment & Review */}
+            {/* STEP 2: Payment */}
             {step === 'payment' && (
               <div className="space-y-6">
-                {/* Summary */}
                 <div className="p-4 border rounded-sm bg-muted/30 text-sm space-y-2">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Contact</span>
@@ -450,21 +248,12 @@ export default function CheckoutPage() {
                 </section>
 
                 <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setStep('shipping')}
-                    className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                  >
+                  <button type="button" onClick={() => setStep('shipping')} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
                     <ArrowLeft className="h-4 w-4" />
                     Back
                   </button>
-                  {/* Only show Place Order button for system provider (non-Stripe) */}
                   {!stripeConfig.paymentReady && (
-                    <button
-                      onClick={handlePlaceOrder}
-                      disabled={isUpdating}
-                      className="flex-1 bg-foreground text-background py-3.5 text-sm font-semibold uppercase tracking-wide hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
-                    >
+                    <button onClick={handlePlaceOrder} disabled={isUpdating} className="flex-1 bg-foreground text-background py-3.5 text-sm font-semibold uppercase tracking-wide hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2">
                       {isUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                       Place Order
                     </button>
@@ -474,99 +263,143 @@ export default function CheckoutPage() {
             )}
           </div>
 
-          {/* Order Summary Sidebar */}
+          {/* ============ RIGHT COLUMN: Order Summary + Shipping Methods ============ */}
           <div>
-            <div className="sticky top-24 border rounded-sm p-6">
-              <h2 className="text-xs uppercase tracking-widest font-semibold mb-6">Order Summary</h2>
-
-              {!hasItems ? (
-                <div className="text-center py-8">
-                  <ShoppingBag className="mx-auto h-8 w-8 text-muted-foreground/40" strokeWidth={1.5} />
-                  <p className="mt-3 text-sm text-muted-foreground">Your bag is empty</p>
-                  <Link href="/products" className="mt-3 inline-block text-sm font-semibold underline underline-offset-4">
-                    Continue Shopping
-                  </Link>
-                </div>
-              ) : (
-                <>
-                  <div className="space-y-4 mb-6">
-                    {cart?.items?.map((item: any) => (
-                      <div key={item.id} className="flex gap-3">
-                        <div className="relative h-16 w-14 flex-shrink-0 overflow-hidden bg-muted rounded-sm">
-                          <Image
-                            src={getProductImage(item.thumbnail, item.product_id || item.id)}
-                            alt={item.title}
-                            fill
-                            className="object-cover"
-                          />
-                          <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-foreground text-[9px] font-bold text-background">
-                            {item.quantity}
-                          </span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{item.title}</p>
-                          {item.variant?.title && item.variant.title !== 'Default' && (
-                            <p className="text-xs text-muted-foreground">{item.variant.title}</p>
-                          )}
-                        </div>
-                        <p className="text-sm font-medium">{formatPrice(item.unit_price, currency)}</p>
-                      </div>
-                    ))}
+            <div className="sticky top-24 space-y-6">
+              {/* Order Summary */}
+              {/* Order Summary */}
+              <div className="border rounded-sm p-6">
+                <h2 className="text-xs uppercase tracking-widest font-semibold mb-6">Order Summary</h2>
+                {!hasItems ? (
+                  <div className="text-center py-8">
+                    <ShoppingBag className="mx-auto h-8 w-8 text-muted-foreground/40" strokeWidth={1.5} />
+                    <p className="mt-3 text-sm text-muted-foreground">Your bag is empty</p>
+                    <Link href="/products" className="mt-3 inline-block text-sm font-semibold underline underline-offset-4">Continue Shopping</Link>
                   </div>
-
-                  <div className="border-t pt-4">
-                    <PromoCodeInput
-                      appliedPromoCodes={appliedPromoCodes}
-                      discountTotal={discountTotal}
-                      currencyCode={currency}
-                      isApplyingPromo={isApplyingPromo}
-                      isRemovingPromo={isRemovingPromo}
-                      onApply={applyPromoCode}
-                      onRemove={removePromoCode}
-                    />
-                  </div>
-
-                  <div className="space-y-2 text-sm border-t pt-4">
-                    {(() => {
-                      const isTaxInclusive = cart?.items?.some((item: any) => item.is_tax_inclusive)
-                      const subtotal = isTaxInclusive
-                        ? ((cart as any)?.original_item_total ?? 0)
-                        : ((cart as any)?.original_item_subtotal ?? cart?.subtotal ?? 0)
-                      return (
-                        <>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Subtotal</span>
-                            <span>{formatPrice(subtotal, currency)}</span>
+                ) : (
+                  <>
+                    <div className="space-y-4 mb-6">
+                      {cart?.items?.map((item: any) => (
+                        <div key={item.id} className="flex gap-3">
+                          <div className="relative h-16 w-14 flex-shrink-0 overflow-hidden bg-muted rounded-sm">
+                            <Image src={getProductImage(item.thumbnail, item.product_id || item.id)} alt={item.title} fill className="object-cover" />
+                            <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-foreground text-[9px] font-bold text-background">{item.quantity}</span>
                           </div>
-                          {discountTotal > 0 && (
-                            <div className="flex justify-between text-green-700 dark:text-green-500">
-                              <span className="text-muted-foreground">Discount</span>
-                              <span>-{formatPrice(discountTotal, currency)}</span>
-                            </div>
-                          )}
-                          {cart?.shipping_total != null && cart.shipping_total > 0 && (
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground">Shipping</span>
-                              <span>{formatPrice(cart.shipping_total, currency)}</span>
-                            </div>
-                          )}
-                          {cart?.tax_total != null && cart.tax_total > 0 && (
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground">
-                                {isTaxInclusive ? 'Includes tax' : 'Tax'}
-                              </span>
-                              <span>{isTaxInclusive ? '' : '+'}{formatPrice(cart.tax_total, currency)}</span>
-                            </div>
-                          )}
-                        </>
-                      )
-                    })()}
-                    <div className="flex justify-between border-t pt-2 mt-2">
-                      <span className="font-semibold">Total</span>
-                      <span className="font-heading text-lg font-semibold">{formatPrice(cart?.total || 0, currency)}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{item.title}</p>
+                            {item.variant?.title && item.variant.title !== 'Default' && (
+                              <p className="text-xs text-muted-foreground">{item.variant.title}</p>
+                            )}
+                          </div>
+                          <p className="text-sm font-medium">{formatPrice(item.unit_price, currency)}</p>
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                </>
+
+                    <div className="border-t pt-4">
+                      <PromoCodeInput
+                        appliedPromoCodes={appliedPromoCodes}
+                        discountTotal={discountTotal}
+                        currencyCode={currency}
+                        isApplyingPromo={isApplyingPromo}
+                        isRemovingPromo={isRemovingPromo}
+                        onApply={applyPromoCode}
+                        onRemove={removePromoCode}
+                      />
+                    </div>
+
+                    <div className="space-y-2 text-sm border-t pt-4">
+                      {(() => {
+                        const isTaxInclusive = cart?.items?.some((item: any) => item.is_tax_inclusive)
+                        const checkoutSubtotal = isTaxInclusive
+                          ? ((cart as any)?.original_item_total ?? 0)
+                          : ((cart as any)?.original_item_subtotal ?? cart?.subtotal ?? 0)
+                        return (
+                          <>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Subtotal</span>
+                              <span>{formatPrice(checkoutSubtotal, currency)}</span>
+                            </div>
+                            {discountTotal > 0 && (
+                              <div className="flex justify-between text-green-700 dark:text-green-500">
+                                <span className="text-muted-foreground">Discount</span>
+                                <span>-{formatPrice(discountTotal, currency)}</span>
+                              </div>
+                            )}
+                            {cart?.shipping_total != null && cart.shipping_total > 0 && (
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Shipping</span>
+                                <span>{formatPrice(cart.shipping_total, currency)}</span>
+                              </div>
+                            )}
+                            {cart?.tax_total != null && cart.tax_total > 0 && (
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">
+                                  {isTaxInclusive ? 'Includes tax' : 'Tax'}
+                                </span>
+                                <span>{isTaxInclusive ? '' : '+'}{formatPrice(cart.tax_total, currency)}</span>
+                              </div>
+                            )}
+                          </>
+                        )
+                      })()}
+                      <div className="flex justify-between border-t pt-2 mt-2">
+                        <span className="font-semibold">Total</span>
+                        <span className="font-heading text-lg font-semibold">{formatPrice(cart?.total || 0, currency)}</span>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Shipping Method — on the right, below order summary */}
+              {step === 'shipping' && (
+                <div className="border rounded-sm p-6">
+                  <h2 className="text-xs uppercase tracking-widest font-semibold mb-4">Shipping Method</h2>
+                  {loadingShipping ? (
+                    <div className="flex items-center justify-center py-6">
+                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : shippingOptions.length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-2">No shipping options available.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {shippingOptions.map((option: any) => {
+                        const price = option.amount != null ? option.amount : option.prices?.[0]?.amount
+                        const priceLabel = price === 0 ? 'Free' : price != null ? formatPrice(price, currency) : '—'
+                        return (
+                          <label
+                            key={option.id}
+                            className={`flex items-center justify-between p-3 border rounded-sm cursor-pointer transition-colors ${
+                              selectedShipping === option.id ? 'border-foreground' : 'hover:border-foreground/50'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <input type="radio" name="shipping" value={option.id} checked={selectedShipping === option.id} onChange={() => setSelectedShipping(option.id)} className="accent-foreground" />
+                              <div>
+                                <p className="text-sm font-medium">{option.name}</p>
+                                {option.type?.description && (
+                                  <p className="text-xs text-muted-foreground">{option.type.description}</p>
+                                )}
+                              </div>
+                            </div>
+                            <span className="text-sm font-medium">{priceLabel}</span>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    form="shipping-form"
+                    disabled={isUpdating || !selectedShipping || !hasItems}
+                    className="w-full mt-4 bg-foreground text-background py-3.5 text-sm font-semibold uppercase tracking-wide hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    Continue to Payment
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -576,13 +409,9 @@ export default function CheckoutPage() {
         <div className="mt-12 pt-8 border-t text-center">
           <p className="text-xs text-muted-foreground">
             By completing your order, you agree to our{' '}
-            <Link href="/terms" className="underline underline-offset-2 hover:text-foreground transition-colors">
-              Terms of Service
-            </Link>
+            <Link href="/terms" className="underline underline-offset-2 hover:text-foreground transition-colors">Terms of Service</Link>
             {' '}and{' '}
-            <Link href="/privacy" className="underline underline-offset-2 hover:text-foreground transition-colors">
-              Privacy Policy
-            </Link>
+            <Link href="/privacy" className="underline underline-offset-2 hover:text-foreground transition-colors">Privacy Policy</Link>
           </p>
         </div>
       </div>
