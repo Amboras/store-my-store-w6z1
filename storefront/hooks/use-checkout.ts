@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { medusaClient } from '@/lib/medusa-client'
+import { getMedusaClient } from '@/lib/medusa-client'
+import { logger } from '@/lib/logger'
 import { useCart } from './use-cart'
 import { useStripeConfig } from './use-stripe-config'
 
@@ -33,6 +34,7 @@ export function useCheckout() {
   const [isUpdating, setIsUpdating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [paymentSession, setPaymentSession] = useState<PaymentSession | null>(null)
+  const [isCompletingCheckout, setIsCompletingCheckout] = useState(false)
 
   const stripeConfig = useStripeConfig()
 
@@ -41,7 +43,7 @@ export function useCheckout() {
     queryKey: ['shipping-options', cart?.id],
     queryFn: async () => {
       if (!cart?.id) return []
-      const { shipping_options } = await medusaClient.store.fulfillment.listCartOptions({
+      const { shipping_options } = await getMedusaClient().store.fulfillment.listCartOptions({
         cart_id: cart.id,
       })
       return shipping_options || []
@@ -57,14 +59,14 @@ export function useCheckout() {
 
     try {
       // Save address first (required before adding shipping method)
-      await medusaClient.store.cart.update(cart.id, {
+      await getMedusaClient().store.cart.update(cart.id, {
         email,
         shipping_address: address,
         billing_address: address,
       })
 
       // Set shipping method — only update cart cache once, after final call
-      const { cart: finalCart } = await medusaClient.store.cart.addShippingMethod(cart.id, {
+      const { cart: finalCart } = await getMedusaClient().store.cart.addShippingMethod(cart.id, {
         option_id: shippingOptionId,
       })
       queryClient.setQueryData(['cart'], finalCart)
@@ -89,7 +91,7 @@ export function useCheckout() {
         ? 'pp_stripe-connect_stripe-connect'
         : 'pp_system_default'
 
-      const response = await medusaClient.store.payment.initiatePaymentSession(cart, {
+      const response = await getMedusaClient().store.payment.initiatePaymentSession(cart, {
         provider_id: providerId,
       })
 
@@ -117,17 +119,25 @@ export function useCheckout() {
 
   const completeCheckout = async () => {
     if (!cart?.id) return null
+
+    // Prevent duplicate requests
+    if (isCompletingCheckout) {
+      logger.debug('Checkout already in progress, skipping duplicate request')
+      return null
+    }
+
+    setIsCompletingCheckout(true)
     setIsUpdating(true)
     setError(null)
 
     try {
       if (!stripeConfig.paymentReady) {
-        await medusaClient.store.payment.initiatePaymentSession(cart, {
+        await getMedusaClient().store.payment.initiatePaymentSession(cart, {
           provider_id: 'pp_system_default',
         })
       }
 
-      const result = await medusaClient.store.cart.complete(cart.id)
+      const result = await getMedusaClient().store.cart.complete(cart.id)
 
       if (result?.type === 'order') {
         if (typeof window !== 'undefined') {
@@ -140,10 +150,42 @@ export function useCheckout() {
         return null
       }
     } catch (err: any) {
-      setError(err?.message || 'Failed to place order')
+      const errorMessage = err?.message || 'Failed to place order'
+
+      // Handle idempotency conflict OR already completed cart - order was already created
+      if (errorMessage.includes('conflicted with another request') ||
+          errorMessage.includes('Idempotency') ||
+          errorMessage.includes('already completed')) {
+        logger.debug('Cart already completed detected - order was created previously')
+
+        // Try to fetch the completed cart/order
+        try {
+          const cartData = await getMedusaClient().store.cart.retrieve(cart.id)
+          if (cartData?.cart?.completed_at) {
+            // Cart was completed, clear it and treat as success
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('medusa_cart_id')
+            }
+            queryClient.invalidateQueries({ queryKey: ['cart'] })
+
+            // Return a minimal order object with the cart ID so redirect happens
+            return { id: cart.id } as any
+          }
+        } catch (retrieveErr) {
+          console.error('Failed to retrieve cart:', retrieveErr)
+          // If we can't retrieve it, just clear localStorage and show error
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('medusa_cart_id')
+          }
+          queryClient.invalidateQueries({ queryKey: ['cart'] })
+        }
+      }
+
+      setError(errorMessage)
       return null
     } finally {
       setIsUpdating(false)
+      setIsCompletingCheckout(false)
     }
   }
 

@@ -33,7 +33,7 @@ export default function SearchPage() {
             <p className="text-sm text-muted-foreground mb-8">
               Showing results for &ldquo;{query}&rdquo;
             </p>
-            <ProductGrid limit={20} />
+            <ProductGrid limit={20} query={query} />
           </>
         ) : (
           <div className="text-center py-16">

@@ -1,6 +1,7 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
+import { logger } from '@/lib/logger'
 
 export interface StorePolicies {
   privacy_policy?: string | null
@@ -24,11 +25,7 @@ export function usePolicies() {
     queryKey: ['store-policies'],
     queryFn: async () => {
       const url = `${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL}/store/policies`
-      console.log('[usePolicies] Fetching from:', url)
-      console.log('[usePolicies] Headers:', {
-        'x-publishable-api-key': process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY,
-        'X-Store-Environment-ID': process.env.NEXT_PUBLIC_STORE_ID,
-      })
+      logger.debug('[usePolicies] Fetching from:', url)
 
       // Fetch policies from public /store/policies endpoint
       const response = await fetch(url, {
@@ -38,7 +35,7 @@ export function usePolicies() {
         },
       })
 
-      console.log('[usePolicies] Response status:', response.status)
+      logger.debug('[usePolicies] Response status:', response.status)
 
       if (!response.ok) {
         const errorText = await response.text()
@@ -47,7 +44,7 @@ export function usePolicies() {
       }
 
       const data: PoliciesResponse = await response.json()
-      console.log('[usePolicies] Policies data:', data.policies)
+      logger.debug('[usePolicies] Policies data:', data.policies)
       return data.policies
     },
     staleTime: 1000 * 60 * 60, // 1 hour — policies rarely change (matches backend cache)

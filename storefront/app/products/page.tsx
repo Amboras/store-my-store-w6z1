@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import ProductGrid from '@/components/product/product-grid'
 import { useQuery } from '@tanstack/react-query'
-import { medusaClient } from '@/lib/medusa-client'
+import { getMedusaClient } from '@/lib/medusa-client'
 import { SlidersHorizontal, X } from 'lucide-react'
 
 export default function ProductsPage() {
@@ -14,7 +14,7 @@ export default function ProductsPage() {
   const { data: categories, isLoading: loadingCategories } = useQuery({
     queryKey: ['categories'],
     queryFn: async () => {
-      const response = await medusaClient.store.category.list({ limit: 100 })
+      const response = await getMedusaClient().store.category.list({ limit: 100 })
       return response.product_categories
     },
   })

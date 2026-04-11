@@ -1,7 +1,10 @@
-'use client'
+import { Metadata } from 'next'
+import { FaqAccordion } from './faq-accordion'
 
-import { useState } from 'react'
-import { ChevronDown } from 'lucide-react'
+export const metadata: Metadata = {
+  title: 'FAQ',
+  description: 'Frequently asked questions about orders, shipping, returns, and more.',
+}
 
 const faqs = [
   { q: 'How long does shipping take?', a: 'Standard shipping takes 5-7 business days within the US. Express shipping (2-3 business days) is available at checkout. International orders typically arrive within 10-14 business days.' },
@@ -14,21 +17,6 @@ const faqs = [
   { q: 'How do I care for my products?', a: 'Care instructions are included with every product and available on each product page. When in doubt, follow the care label attached to the item or contact us for guidance.' },
 ]
 
-function FaqItem({ q, a }: { q: string; a: string }) {
-  const [open, setOpen] = useState(false)
-  return (
-    <div className="border-b">
-      <button onClick={() => setOpen(!open)} className="flex w-full items-center justify-between py-5 text-left">
-        <span className="text-sm font-medium pr-4">{q}</span>
-        <ChevronDown className={`h-4 w-4 flex-shrink-0 text-muted-foreground transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
-      </button>
-      <div className={`overflow-hidden transition-all duration-200 ${open ? 'max-h-96 pb-5' : 'max-h-0'}`}>
-        <p className="text-sm text-muted-foreground leading-relaxed">{a}</p>
-      </div>
-    </div>
-  )
-}
-
 export default function FaqPage() {
   return (
     <>
@@ -40,7 +28,7 @@ export default function FaqPage() {
       </div>
       <div className="container-custom py-section max-w-2xl">
         <div className="border-t">
-          {faqs.map((faq, i) => <FaqItem key={i} {...faq} />)}
+          <FaqAccordion faqs={faqs} />
         </div>
       </div>
     </>

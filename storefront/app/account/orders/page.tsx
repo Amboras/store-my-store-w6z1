@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
-import { medusaClient } from '@/lib/medusa-client'
+import { getMedusaClient } from '@/lib/medusa-client'
 import AccountLayout from '@/components/account/account-layout'
 import Link from 'next/link'
 import { Package, Loader2 } from 'lucide-react'
@@ -11,7 +11,7 @@ export default function OrdersPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['orders'],
     queryFn: async () => {
-      const response = await medusaClient.store.order.list()
+      const response = await getMedusaClient().store.order.list()
       return response.orders
     },
     retry: false,
@@ -52,7 +52,11 @@ export default function OrdersPage() {
                 : '—'
 
               return (
-                <div key={order.id} className="border rounded-sm p-5">
+                <Link
+                  key={order.id}
+                  href={`/account/orders/${order.id}`}
+                  className="block border rounded-sm p-5 hover:border-accent transition-colors"
+                >
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
                       <p className="text-sm font-medium">
@@ -75,7 +79,7 @@ export default function OrdersPage() {
                       </p>
                     </div>
                   )}
-                </div>
+                </Link>
               )
             })}
           </div>

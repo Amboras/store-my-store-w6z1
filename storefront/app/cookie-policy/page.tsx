@@ -1,20 +1,14 @@
-'use client'
+import type { Metadata } from 'next'
+import { getPolicies } from '@/lib/get-policies'
+import { PolicyMarkdown } from '@/components/policy-markdown'
 
-import { usePolicies } from '@/hooks/use-policies'
-import { Loader2 } from 'lucide-react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
+export const metadata: Metadata = {
+  title: 'Cookie Policy',
+  description: 'How we use cookies, third-party cookies, and how to manage your preferences.',
+}
 
-export default function CookiePolicyPage() {
-  const { policies, isLoading } = usePolicies()
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    )
-  }
+export default async function CookiePolicyPage() {
+  const policies = await getPolicies()
 
   const policy = policies?.cookie_policy
   const contactEmail = policies?.contact_email || 'privacy@yourstore.com'
@@ -34,7 +28,7 @@ export default function CookiePolicyPage() {
       <div className="container-custom py-section max-w-3xl">
         {policy ? (
           <div className="prose prose-sm max-w-none text-muted-foreground leading-relaxed">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{policy}</ReactMarkdown>
+            <PolicyMarkdown content={policy} />
           </div>
         ) : (
           <div className="space-y-8 text-sm text-muted-foreground leading-relaxed">

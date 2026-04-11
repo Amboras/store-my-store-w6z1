@@ -1,23 +1,16 @@
-'use client'
+import type { Metadata } from 'next'
+import { getPolicies } from '@/lib/get-policies'
+import { PolicyMarkdown } from '@/components/policy-markdown'
 
-import { usePolicies } from '@/hooks/use-policies'
-import { Loader2 } from 'lucide-react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
+export const metadata: Metadata = {
+  title: 'Privacy Policy',
+  description: 'Learn how we collect, use, and protect your personal information.',
+}
 
-export default function PrivacyPage() {
-  const { policies, isLoading } = usePolicies()
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    )
-  }
+export default async function PrivacyPage() {
+  const policies = await getPolicies()
 
   const policy = policies?.privacy_policy
-  const storeName = policies?.store_name || 'Store'
   const contactEmail = policies?.contact_email || 'privacy@yourstore.com'
   const updatedAt = policies?.updated_at
     ? new Date(policies.updated_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })
@@ -35,7 +28,7 @@ export default function PrivacyPage() {
       <div className="container-custom py-section max-w-3xl">
         {policy ? (
           <div className="prose prose-sm max-w-none text-muted-foreground leading-relaxed">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{policy}</ReactMarkdown>
+            <PolicyMarkdown content={policy} />
           </div>
         ) : (
           <div className="space-y-8 text-sm text-muted-foreground leading-relaxed">

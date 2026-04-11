@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useRef, useCallback } from 'react'
 import { useCart } from '@/hooks/use-cart'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -7,6 +8,7 @@ import { X, ShoppingBag, Minus, Plus, Trash2 } from 'lucide-react'
 import { getProductImage } from '@/lib/utils/placeholder-images'
 import { formatPrice } from '@/lib/utils/format-price'
 import { PromoCodeInput } from '@/components/checkout/promo-code-input'
+import type { CartLineItem } from '@/types'
 
 interface CartDrawerProps {
   isOpen: boolean
@@ -19,6 +21,47 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
     appliedPromoCodes, discountTotal, applyPromoCode, removePromoCode,
     isApplyingPromo, isRemovingPromo,
   } = useCart()
+
+  const drawerRef = useRef<HTMLDivElement>(null)
+  const closeButtonRef = useRef<HTMLButtonElement>(null)
+
+  // Focus the close button when drawer opens
+  useEffect(() => {
+    if (isOpen) {
+      closeButtonRef.current?.focus()
+    }
+  }, [isOpen])
+
+  // Close on Escape key
+  useEffect(() => {
+    if (!isOpen) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, onClose])
+
+  // Trap focus inside drawer
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key !== 'Tab' || !drawerRef.current) return
+
+    const focusable = drawerRef.current.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    )
+    if (focusable.length === 0) return
+
+    const first = focusable[0]
+    const last = focusable[focusable.length - 1]
+
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault()
+      last.focus()
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault()
+      first.focus()
+    }
+  }, [])
 
   if (!isOpen) return null
 
@@ -34,13 +77,21 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
       />
 
       {/* Drawer */}
-      <div className="fixed right-0 top-0 h-full w-full max-w-md bg-background shadow-2xl z-50 flex flex-col animate-slide-in-right">
+      <div
+        ref={drawerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Shopping bag"
+        onKeyDown={handleKeyDown}
+        className="fixed right-0 top-0 h-full w-full max-w-md bg-background shadow-2xl z-50 flex flex-col animate-slide-in-right"
+      >
         {/* Header */}
         <div className="flex items-center justify-between border-b px-6 py-5">
           <h2 className="font-heading text-xl font-semibold">
             Bag ({itemCount})
           </h2>
           <button
+            ref={closeButtonRef}
             onClick={onClose}
             className="p-2 -mr-2 hover:opacity-70 transition-opacity"
             aria-label="Close bag"
@@ -77,7 +128,7 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
             </div>
           ) : (
             <div className="space-y-6">
-              {cart.items.map((item: any) => {
+              {cart.items.map((item: CartLineItem) => {
                 const price = item.unit_price
                 const formattedPrice = formatPrice(price, currencyCode)
 
@@ -104,7 +155,7 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                         </div>
                         <button
                           onClick={() => removeItem(item.id)}
-                          className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+                          className="p-2 -mr-2 text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
                           aria-label="Remove item"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -116,18 +167,18 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                         <div className="flex items-center border rounded-md">
                           <button
                             onClick={() => updateItem({ lineId: item.id, quantity: Math.max(1, item.quantity - 1) })}
-                            className="p-1.5 hover:bg-muted transition-colors"
+                            className="p-2.5 hover:bg-muted transition-colors"
                             aria-label="Decrease quantity"
                           >
-                            <Minus className="h-3 w-3" />
+                            <Minus className="h-3.5 w-3.5" />
                           </button>
                           <span className="px-3 text-sm font-medium tabular-nums">{item.quantity}</span>
                           <button
                             onClick={() => updateItem({ lineId: item.id, quantity: item.quantity + 1 })}
-                            className="p-1.5 hover:bg-muted transition-colors"
+                            className="p-2.5 hover:bg-muted transition-colors"
                             aria-label="Increase quantity"
                           >
-                            <Plus className="h-3 w-3" />
+                            <Plus className="h-3.5 w-3.5" />
                           </button>
                         </div>
 

@@ -20,9 +20,9 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
 
   useEffect(() => {
     if (!isLoading && !isLoggedIn) {
-      router.push('/auth/login')
+      router.push(`/auth/login?redirect=${encodeURIComponent(pathname)}`)
     }
-  }, [isLoading, isLoggedIn, router])
+  }, [isLoading, isLoggedIn, router, pathname])
 
   if (isLoading) {
     return (

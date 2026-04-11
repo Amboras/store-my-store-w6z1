@@ -1,4 +1,4 @@
-import { medusaClient } from '@/lib/medusa-client'
+import { medusaServerClient } from '@/lib/medusa-client'
 import Link from 'next/link'
 import { Metadata } from 'next'
 import { ArrowRight } from 'lucide-react'
@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: 'Collections' }
 
 async function getCollections() {
   try {
-    const response = await medusaClient.store.collection.list({ limit: 50 })
+    const response = await medusaServerClient.store.collection.list({ limit: 50 })
     return response.collections || []
   } catch {
     return []

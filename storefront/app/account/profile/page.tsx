@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/use-auth'
-import { medusaClient } from '@/lib/medusa-client'
+import { getMedusaClient } from '@/lib/medusa-client'
 import { useQueryClient } from '@tanstack/react-query'
 import AccountLayout from '@/components/account/account-layout'
 import { Loader2 } from 'lucide-react'
@@ -34,7 +34,7 @@ export default function ProfilePage() {
     setSaving(true)
 
     try {
-      const { customer: updated } = await medusaClient.store.customer.update({
+      const { customer: updated } = await getMedusaClient().store.customer.update({
         first_name: form.first_name,
         last_name: form.last_name,
         phone: form.phone || undefined,

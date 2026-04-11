@@ -10,6 +10,7 @@ interface ProductGridProps {
   collectionId?: string
   categoryId?: string
   sortBy?: string
+  query?: string
 }
 
 function ProductSkeleton() {
@@ -29,11 +30,13 @@ export default function ProductGrid({
   collectionId,
   categoryId,
   sortBy = 'newest',
+  query,
 }: ProductGridProps) {
   const { data: rawProducts, isLoading, error } = useProducts({
     limit,
     collection_id: collectionId,
     category_id: categoryId,
+    q: query,
   })
 
   const productIds = rawProducts?.map((p: any) => p.id) || []
@@ -43,31 +46,33 @@ export default function ProductGrid({
       const baseUrl = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || 'http://localhost:9000'
       const storeId = process.env.NEXT_PUBLIC_STORE_ID
       const publishableKey = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY
-      const headers: Record<string, string> = {}
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
       if (storeId) headers['X-Store-Environment-ID'] = storeId
       if (publishableKey) headers['x-publishable-api-key'] = publishableKey
 
-      const results: Record<string, { compare_at_price: number | null; manage_inventory: boolean; inventory_quantity: number | null }> = {}
-      await Promise.all(
-        productIds.map(async (id: string) => {
-          try {
-            const res = await fetch(
-              `${baseUrl}/store/product-extensions/products/${id}/variants`,
-              { headers },
-            )
-            if (!res.ok) return
-            const data = await res.json()
-            for (const v of data.variants || []) {
-              results[v.id] = {
-                compare_at_price: v.compare_at_price,
-                manage_inventory: v.manage_inventory ?? false,
-                inventory_quantity: v.inventory_quantity,
-              }
-            }
-          } catch {}
-        }),
-      )
-      return results
+      try {
+        const res = await fetch(
+          `${baseUrl}/store/product-extensions/variants/batch`,
+          {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ product_ids: productIds }),
+          },
+        )
+        if (!res.ok) return {}
+        const data = await res.json()
+        const results: Record<string, { compare_at_price: number | null; manage_inventory: boolean; inventory_quantity: number | null }> = {}
+        for (const v of data.variants || []) {
+          results[v.id] = {
+            compare_at_price: v.compare_at_price,
+            manage_inventory: v.manage_inventory ?? false,
+            inventory_quantity: v.inventory_quantity,
+          }
+        }
+        return results
+      } catch {
+        return {}
+      }
     },
     enabled: productIds.length > 0,
     staleTime: 1000 * 60 * 5,

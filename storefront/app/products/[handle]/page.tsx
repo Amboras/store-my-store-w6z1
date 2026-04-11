@@ -1,5 +1,8 @@
+import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import { medusaClient } from '@/lib/medusa-client'
+
+export const revalidate = 3600 // ISR: revalidate every hour
+import { medusaServerClient } from '@/lib/medusa-client'
 import Image from 'next/image'
 import Link from 'next/link'
 import { Truck, RotateCcw, Shield, ChevronRight } from 'lucide-react'
@@ -10,11 +13,11 @@ import { type VariantExtension } from '@/components/product/product-price'
 
 async function getProduct(handle: string) {
   try {
-    const regionsResponse = await medusaClient.store.region.list()
+    const regionsResponse = await medusaServerClient.store.region.list()
     const regionId = regionsResponse.regions[0]?.id
     if (!regionId) throw new Error('No region found')
 
-    const response = await medusaClient.store.product.list({
+    const response = await medusaServerClient.store.product.list({
       handle,
       region_id: regionId,
       fields: '*variants.calculated_price',
@@ -53,6 +56,29 @@ async function getVariantExtensions(productId: string): Promise<Record<string, V
     return map
   } catch {
     return {}
+  }
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ handle: string }>
+}): Promise<Metadata> {
+  const { handle } = await params
+  const product = await getProduct(handle)
+
+  if (!product) {
+    return { title: 'Product Not Found' }
+  }
+
+  return {
+    title: product.title,
+    description: product.description || `Shop ${product.title}`,
+    openGraph: {
+      title: product.title,
+      description: product.description || `Shop ${product.title}`,
+      ...(product.thumbnail ? { images: [{ url: product.thumbnail }] } : {}),
+    },
   }
 }
 

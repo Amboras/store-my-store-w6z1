@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { medusaClient } from '@/lib/medusa-client'
+import { getMedusaClient } from '@/lib/medusa-client'
 import AccountLayout from '@/components/account/account-layout'
 import { MapPin, Plus, Trash2, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -23,7 +23,7 @@ export default function AddressesPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['addresses'],
     queryFn: async () => {
-      const response = await medusaClient.store.customer.listAddress({ limit: 50 })
+      const response = await getMedusaClient().store.customer.listAddress({ limit: 50 })
       return response.addresses
     },
     retry: false,
@@ -31,7 +31,7 @@ export default function AddressesPage() {
 
   const createAddress = useMutation({
     mutationFn: async () => {
-      return medusaClient.store.customer.createAddress(form)
+      return getMedusaClient().store.customer.createAddress(form)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['addresses'] })
@@ -44,7 +44,7 @@ export default function AddressesPage() {
 
   const deleteAddress = useMutation({
     mutationFn: async (id: string) => {
-      return medusaClient.store.customer.deleteAddress(id)
+      return getMedusaClient().store.customer.deleteAddress(id)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['addresses'] })

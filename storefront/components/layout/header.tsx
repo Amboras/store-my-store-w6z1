@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { Search, ShoppingBag, User, Menu, X, LogIn } from 'lucide-react'
 import { useCart } from '@/hooks/use-cart'
@@ -16,10 +16,48 @@ export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false)
   const { data: collections } = useCollections()
 
+  const mobileMenuRef = useRef<HTMLDivElement>(null)
+  const mobileMenuCloseRef = useRef<HTMLButtonElement>(null)
+
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 10)
     window.addEventListener('scroll', handleScroll, { passive: true })
     return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  // Focus close button when mobile menu opens
+  useEffect(() => {
+    if (isMobileMenuOpen) {
+      mobileMenuCloseRef.current?.focus()
+    }
+  }, [isMobileMenuOpen])
+
+  // Close mobile menu on Escape
+  useEffect(() => {
+    if (!isMobileMenuOpen) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsMobileMenuOpen(false)
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [isMobileMenuOpen])
+
+  // Focus trap for mobile menu
+  const handleMobileMenuKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key !== 'Tab' || !mobileMenuRef.current) return
+    const focusable = mobileMenuRef.current.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    )
+    if (focusable.length === 0) return
+    const first = focusable[0]
+    const last = focusable[focusable.length - 1]
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault()
+      last.focus()
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault()
+      first.focus()
+    }
   }, [])
 
   return (
@@ -70,21 +108,21 @@ export default function Header() {
             <div className="flex items-center gap-1">
               <Link
                 href="/search"
-                className="p-2 hover:opacity-70 transition-opacity"
+                className="p-2.5 hover:opacity-70 transition-opacity"
                 aria-label="Search"
               >
                 <Search className="h-5 w-5" />
               </Link>
               <Link
                 href={isLoggedIn ? '/account' : '/auth/login'}
-                className="p-2 hover:opacity-70 transition-opacity hidden sm:block"
+                className="p-2.5 hover:opacity-70 transition-opacity hidden sm:block"
                 aria-label={isLoggedIn ? 'Account' : 'Sign in'}
               >
                 {isLoggedIn ? <User className="h-5 w-5" /> : <LogIn className="h-5 w-5" />}
               </Link>
               <button
                 onClick={() => setIsCartOpen(true)}
-                className="relative p-2 hover:opacity-70 transition-opacity"
+                className="relative p-2.5 hover:opacity-70 transition-opacity"
                 aria-label="Shopping bag"
               >
                 <ShoppingBag className="h-5 w-5" />
@@ -106,10 +144,18 @@ export default function Header() {
             className="absolute inset-0 bg-black/40"
             onClick={() => setIsMobileMenuOpen(false)}
           />
-          <div className="absolute inset-y-0 left-0 w-80 max-w-[85vw] bg-background animate-slide-in-right">
+          <div
+            ref={mobileMenuRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navigation menu"
+            onKeyDown={handleMobileMenuKeyDown}
+            className="absolute inset-y-0 left-0 w-80 max-w-[85vw] bg-background animate-slide-in-right"
+          >
             <div className="flex items-center justify-between p-4 border-b">
               <span className="font-heading text-xl font-semibold">Menu</span>
               <button
+                ref={mobileMenuCloseRef}
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="p-2 hover:opacity-70"
                 aria-label="Close menu"

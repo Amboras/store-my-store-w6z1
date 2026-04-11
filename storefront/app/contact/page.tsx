@@ -6,10 +6,6 @@ import { Mail, MapPin, Clock, Phone, Loader2 } from 'lucide-react'
 export default function ContactPage() {
   const { policies, isLoading, error } = usePolicies()
 
-  // Debug: log to see what's happening
-  if (error) console.error('Policies fetch error:', error)
-  if (policies) console.log('Policies loaded:', policies)
-
   const contactEmail = policies?.contact_email
   const contactPhone = policies?.contact_phone
   const contactAddress = policies?.contact_address

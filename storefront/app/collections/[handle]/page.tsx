@@ -1,10 +1,10 @@
 import { notFound } from 'next/navigation'
-import { medusaClient } from '@/lib/medusa-client'
+import { medusaServerClient } from '@/lib/medusa-client'
 import ProductGrid from '@/components/product/product-grid'
 
 async function getCollection(handle: string) {
   try {
-    const response = await medusaClient.store.collection.list({
+    const response = await medusaServerClient.store.collection.list({
       handle: [handle],
     })
     return response.collections?.[0] || null

@@ -1,17 +1,34 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Mail } from 'lucide-react'
+import { useSearchParams } from 'next/navigation'
+import { ArrowLeft, Mail, Loader2 } from 'lucide-react'
+import { getMedusaClient } from '@/lib/medusa-client'
+import { toast } from 'sonner'
 
-export default function ForgotPasswordPage() {
-  const [email, setEmail] = useState('')
+function ForgotPasswordForm() {
+  const searchParams = useSearchParams()
+  const prefillEmail = searchParams.get('email') || ''
+
+  const [email, setEmail] = useState(prefillEmail)
   const [submitted, setSubmitted] = useState(false)
+  const [loading, setLoading] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // TODO: Wire to Medusa password reset when available
-    setSubmitted(true)
+    setLoading(true)
+
+    try {
+      await getMedusaClient().auth.resetPassword('customer', 'emailpass', {
+        identifier: email,
+      })
+    } catch {
+      // Don't reveal whether the email exists — always show success
+    } finally {
+      setLoading(false)
+      setSubmitted(true)
+    }
   }
 
   if (submitted) {
@@ -64,9 +81,17 @@ export default function ForgotPasswordPage() {
 
           <button
             type="submit"
-            className="w-full bg-foreground text-background py-3.5 text-sm font-semibold uppercase tracking-wide hover:opacity-90 transition-opacity"
+            disabled={loading}
+            className="w-full bg-foreground text-background py-3.5 text-sm font-semibold uppercase tracking-wide hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            Send Reset Link
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Sending...
+              </>
+            ) : (
+              'Send Reset Link'
+            )}
           </button>
         </form>
 
@@ -81,5 +106,13 @@ export default function ForgotPasswordPage() {
         </p>
       </div>
     </div>
+  )
+}
+
+export default function ForgotPasswordPage() {
+  return (
+    <Suspense fallback={<div className="container-custom py-section text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></div>}>
+      <ForgotPasswordForm />
+    </Suspense>
   )
 }

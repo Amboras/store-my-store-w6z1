@@ -1,20 +1,15 @@
-'use client'
+import type { Metadata } from 'next'
+import { getPolicies } from '@/lib/get-policies'
+import { Truck, RotateCcw, Package } from 'lucide-react'
+import { PolicyMarkdown } from '@/components/policy-markdown'
 
-import { usePolicies } from '@/hooks/use-policies'
-import { Loader2, Truck, RotateCcw, Package } from 'lucide-react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
+export const metadata: Metadata = {
+  title: 'Shipping & Returns',
+  description: 'Shipping methods, delivery times, return policy, and exchange information.',
+}
 
-export default function ShippingPage() {
-  const { policies, isLoading } = usePolicies()
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    )
-  }
+export default async function ShippingPage() {
+  const policies = await getPolicies()
 
   const shippingPolicy = policies?.shipping_policy
   const updatedAt = policies?.updated_at
@@ -35,11 +30,10 @@ export default function ShippingPage() {
       <div className="container-custom py-section max-w-3xl">
         {shippingPolicy ? (
           <div className="prose prose-sm max-w-none text-muted-foreground leading-relaxed">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{shippingPolicy}</ReactMarkdown>
+            <PolicyMarkdown content={shippingPolicy} />
           </div>
         ) : (
           <div className="space-y-12">
-            {/* Shipping */}
             <section>
               <div className="flex items-center gap-3 mb-6">
                 <Truck className="h-6 w-6" strokeWidth={1.5} />
@@ -64,7 +58,6 @@ export default function ShippingPage() {
               </div>
             </section>
 
-            {/* Returns */}
             <section>
               <div className="flex items-center gap-3 mb-6">
                 <RotateCcw className="h-6 w-6" strokeWidth={1.5} />
@@ -81,7 +74,6 @@ export default function ShippingPage() {
               </div>
             </section>
 
-            {/* Exchanges */}
             <section>
               <div className="flex items-center gap-3 mb-6">
                 <Package className="h-6 w-6" strokeWidth={1.5} />

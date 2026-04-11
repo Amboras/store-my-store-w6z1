@@ -60,7 +60,7 @@ function OrderSuccessContent() {
             href="/account/orders"
             className="inline-flex items-center justify-center gap-2 border border-foreground px-8 py-3.5 text-sm font-semibold uppercase tracking-wide hover:bg-foreground hover:text-background transition-colors"
           >
-            View Orders
+            My Orders
           </Link>
         </div>
       </div>
