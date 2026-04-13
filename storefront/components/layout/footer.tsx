@@ -3,29 +3,37 @@
 import Link from 'next/link'
 import { clearConsent } from '@/lib/cookie-consent'
 import { usePolicies } from '@/hooks/use-policies'
+import { Zap, Twitter, Github, Linkedin } from 'lucide-react'
 
 const footerLinks = {
-  shop: [
+  products: [
     { label: 'All Products', href: '/products' },
-    { label: 'New Arrivals', href: '/products?sort=newest' },
-    { label: 'Collections', href: '/collections' },
+    { label: 'Templates', href: '/products' },
+    { label: 'E-Books', href: '/products' },
+    { label: 'Design Assets', href: '/products' },
+    { label: 'Courses', href: '/products' },
   ],
-  help: [
+  support: [
     { label: 'FAQ', href: '/faq' },
-    { label: 'Shipping & Returns', href: '/shipping' },
     { label: 'Contact Us', href: '/contact' },
+    { label: 'Licences', href: '/faq' },
+    { label: 'Downloads Help', href: '/faq' },
   ],
 }
+
+const socialLinks = [
+  { icon: Twitter, href: '#', label: 'Twitter' },
+  { icon: Github, href: '#', label: 'GitHub' },
+  { icon: Linkedin, href: '#', label: 'LinkedIn' },
+]
 
 export default function Footer() {
   const { policies } = usePolicies()
 
-  // Build company links dynamically based on available policies
   const companyLinks = [
     { label: 'About', href: '/about' },
   ]
 
-  // Add policy links only if they're set in the admin
   if (policies?.privacy_policy) {
     companyLinks.push({ label: 'Privacy Policy', href: '/privacy' })
   }
@@ -42,27 +50,46 @@ export default function Footer() {
   return (
     <footer className="border-t bg-muted/30">
       <div className="container-custom py-section-sm">
-        {/* Main Footer */}
+        {/* Main Footer Grid */}
         <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-4">
           {/* Brand */}
           <div className="lg:col-span-1">
-            <Link href="/" className="inline-block">
-              <span className="font-heading text-2xl font-semibold">
-                Store
+            <Link href="/" className="inline-flex items-center gap-2">
+              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600">
+                <Zap className="h-4 w-4 text-white" fill="white" />
+              </div>
+              <span className="font-heading text-xl font-bold tracking-tight">
+                DigitalDen
               </span>
             </Link>
             <p className="mt-4 text-sm text-muted-foreground leading-relaxed max-w-xs">
-              Curated products crafted with care. Quality you can feel, design you can see.
+              Premium digital products for creators. Instant downloads, lifetime access, no subscriptions.
             </p>
+            {/* Social */}
+            <div className="mt-5 flex items-center gap-3">
+              {socialLinks.map(({ icon: Icon, href, label }) => (
+                <a
+                  key={label}
+                  href={href}
+                  aria-label={label}
+                  className="flex items-center justify-center w-8 h-8 rounded-lg border border-border bg-background hover:border-violet-300 hover:text-violet-600 dark:hover:border-violet-700 dark:hover:text-violet-400 transition-colors"
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                </a>
+              ))}
+            </div>
           </div>
 
-          {/* Shop Links */}
+          {/* Products Links */}
           <div>
-            <h3 className="text-xs font-semibold uppercase tracking-widest mb-4">Shop</h3>
+            <h3 className="text-xs font-semibold uppercase tracking-widest mb-4">Products</h3>
             <ul className="space-y-3">
-              {footerLinks.shop.map((link) => (
-                <li key={link.href}>
-                  <Link href={link.href} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+              {footerLinks.products.map((link) => (
+                <li key={link.href + link.label}>
+                  <Link
+                    href={link.href}
+                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
                     {link.label}
                   </Link>
                 </li>
@@ -70,13 +97,16 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Help Links */}
+          {/* Support Links */}
           <div>
-            <h3 className="text-xs font-semibold uppercase tracking-widest mb-4">Help</h3>
+            <h3 className="text-xs font-semibold uppercase tracking-widest mb-4">Support</h3>
             <ul className="space-y-3">
-              {footerLinks.help.map((link) => (
-                <li key={link.href}>
-                  <Link href={link.href} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+              {footerLinks.support.map((link) => (
+                <li key={link.href + link.label}>
+                  <Link
+                    href={link.href}
+                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
                     {link.label}
                   </Link>
                 </li>
@@ -90,7 +120,10 @@ export default function Footer() {
             <ul className="space-y-3">
               {companyLinks.map((link) => (
                 <li key={link.href}>
-                  <Link href={link.href} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                  <Link
+                    href={link.href}
+                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
                     {link.label}
                   </Link>
                 </li>
@@ -102,7 +135,7 @@ export default function Footer() {
         {/* Bottom Bar */}
         <div className="mt-12 pt-8 border-t flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-xs text-muted-foreground">
-            &copy; {new Date().getFullYear()} Store. All rights reserved.
+            &copy; {new Date().getFullYear()} DigitalDen. All rights reserved.
           </p>
           <div className="flex items-center gap-6">
             <button
